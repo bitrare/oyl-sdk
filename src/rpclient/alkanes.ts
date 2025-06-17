@@ -337,7 +337,7 @@ export class AlkanesRpc {
     txid: string
     vout: number
     protocolTag?: string
-    height?: string
+    height?: string | number
   }): Promise<any> {
     const reversedTxid = Buffer.from(txid, 'hex').reverse().toString('hex')
     

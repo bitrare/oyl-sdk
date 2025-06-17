@@ -60,7 +60,7 @@ export declare class AlkanesRpc {
         txid: string;
         vout: number;
         protocolTag?: string;
-        height?: string;
+        height?: string | number;
     }): Promise<any>;
     getAlkaneById({ block, tx, }: {
         block: string;
