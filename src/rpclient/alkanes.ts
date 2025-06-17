@@ -98,9 +98,16 @@ export class AlkanesRpc {
   }
   async _metashrewCall(method: string, params: any[] = []) {
     const rpc = new alkanes_rpc.AlkanesRpc({ baseUrl: metashrew.get() })
-    return mapToPrimitives(
-      await rpc[method.split('_')[1]](unmapFromPrimitives(params[0] || {}))
+    
+    const methodName = method.split('_')[1]
+    const firstParam = unmapFromPrimitives(params[0] || {})
+    const secondParam = params[1] || "latest"
+    
+    const result = mapToPrimitives(
+      await rpc[methodName](firstParam, secondParam)
     )
+    
+    return result
   }
   async _call(method: string, params: any[] = []) {
     if (metashrew.get() !== null && method.match('alkanes_')) {
@@ -332,16 +339,21 @@ export class AlkanesRpc {
     protocolTag?: string
     height?: string
   }): Promise<any> {
+    const reversedTxid = Buffer.from(txid, 'hex').reverse().toString('hex')
+    
+    const firstParam = {
+      txid: reversedTxid,
+      vout,
+      protocolTag,
+    }
+    const secondParam = height
+    
     const alkaneList = await this._call('alkanes_protorunesbyoutpoint', [
-      {
-        txid: Buffer.from(txid, 'hex').reverse().toString('hex'),
-        vout,
-        protocolTag,
-      },
-      height,
+      firstParam,
+      secondParam,
     ])
 
-    return alkaneList.map((outpoint) => ({
+    const mappedResult = alkaneList.map((outpoint) => ({
       ...outpoint,
       token: {
         ...outpoint.token,
@@ -352,6 +364,8 @@ export class AlkanesRpc {
       },
       value: parseInt(outpoint.value, 16).toString(),
     }))
+    
+    return mappedResult
   }
 
   async getAlkaneById({
