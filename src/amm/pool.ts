@@ -118,17 +118,10 @@ export const addLiquidityPsbt = async ({
     { alkaneId: token1, amount: token1Amount },
   ]
 
-  const { edicts, utxos: alkanesUtxos } = await splitAlkaneUtxos(tokens, utxos)
+  const { utxos: alkanesUtxos } = await splitAlkaneUtxos(tokens, utxos)
 
   const protostone: Buffer = encodeRunestoneProtostone({
     protostones: [
-      ProtoStone.message({
-        edicts,
-        protocolTag: 1n,
-        pointer: 0,
-        refundPointer: 0,
-        calldata: encipher([]),
-      }),
       ProtoStone.message({
         protocolTag: 1n,
         pointer: 0,
@@ -274,13 +267,6 @@ export const removeLiquidityPsbt = async ({
     protostones: [
       ProtoStone.message({
         protocolTag: 1n,
-        edicts,
-        pointer: 0,
-        refundPointer: 0,
-        calldata: encipher([]),
-      }),
-      ProtoStone.message({
-        protocolTag: 1n,
         pointer: 0,
         refundPointer: 0,
         calldata: encipher(calldata),
@@ -373,30 +359,9 @@ export const swapPsbt = async ({
     alkaneId: token,
   })
 
-  // If there is a frontendFee, there is an extra utxo
-  const MIN_RELAY = 546n
-  const virtualOut = feeAddress && frontendFee && frontendFee >= MIN_RELAY ? 6 : 5
-
-  const edicts: ProtoruneEdict[] = [
-    {
-      id: new ProtoruneRuneId(
-        u128(BigInt(token.block)),
-        u128(BigInt(token.tx))
-      ),
-      amount: u128(tokenAmount),
-      output: u32(virtualOut),
-    },
-  ]
 
   const protostone: Buffer = encodeRunestoneProtostone({
     protostones: [
-      ProtoStone.message({
-        protocolTag: 1n,
-        edicts,
-        pointer: 0,
-        refundPointer: 0,
-        calldata: encipher([]),
-      }),
       ProtoStone.message({
         protocolTag: 1n,
         pointer: 0,

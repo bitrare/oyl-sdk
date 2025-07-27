@@ -142,6 +142,7 @@ export const alkaneContractDeploy = new AlkanesCommand('new-contract')
 
 /* @dev example call 
   oyl alkane new-token -pre 5000 -amount 1000 -c 100000 -name "OYL" -symbol "OL" -resNumber 77 -i ./src/cli/contracts/image.png
+  oyl alkane new-token -resNumber 12050 -i ./src/cli/contracts/image.png -args 0,10,100000000
   
   The resNumber must be a resNumber for a deployed contract. In this case 77 is the resNumber for 
   the free_mint.wasm contract and the options supplied are for the free_mint.wasm contract.
@@ -158,10 +159,10 @@ export const alkaneTokenDeploy = new AlkanesCommand('new-token')
     '-resNumber, --reserveNumber <reserveNumber>',
     'Number to reserve for factory id'
   )
-  .requiredOption('-c, --cap <cap>', 'the token cap')
-  .requiredOption('-name, --token-name <name>', 'the token name')
-  .requiredOption('-symbol, --token-symbol <symbol>', 'the token symbol')
-  .requiredOption(
+  .option('-c, --cap <cap>', 'the token cap')
+  .option('-name, --token-name <name>', 'the token name')
+  .option('-symbol, --token-symbol <symbol>', 'the token symbol')
+  .option(
     '-amount, --amount-per-mint <amount-per-mint>',
     'Amount of tokens minted each time mint is called'
   )
@@ -174,6 +175,15 @@ export const alkaneTokenDeploy = new AlkanesCommand('new-token')
     '-p, --provider <provider>',
     'Network provider type (regtest, bitcoin)'
   )
+  .option(
+    '-args, --arguments <arguments>',
+    'opcode and params to be used when deploying a contract (e.g. -args "1,2,3"). Note: if using this arg, the values for premine, amount-per-mint, cap, token-name, and token-symbol will be ignored',
+    (value, previous) => {
+      const items = value.split(',')
+      return previous ? previous.concat(items) : items
+    },
+    []
+  )
   .option('-feeRate, --feeRate <feeRate>', 'fee rate')
   .action(async (options) => {
     const wallet: Wallet = new Wallet(options)
@@ -182,28 +192,37 @@ export const alkaneTokenDeploy = new AlkanesCommand('new-token')
       account: wallet.account,
       provider: wallet.provider,
     })
-    const tokenName = packUTF8(options.tokenName)
-    const tokenSymbol = packUTF8(options.tokenSymbol)
 
-    if (tokenName.length > 2) {
-      throw new Error('Token name too long')
-    }
-
-    if (tokenSymbol.length > 1) {
-      throw new Error('Token symbol too long')
-    }
-
-    const calldata = [
+    let calldata = [
       BigInt(6),
       BigInt(options.reserveNumber),
-      BigInt(0),
-      BigInt(options.premine ?? 0),
-      BigInt(options.amountPerMint),
-      BigInt(options.cap),
-      BigInt('0x' + tokenName[0]),
-      BigInt(tokenName.length > 1 ? '0x' + tokenName[1] : 0),
-      BigInt('0x' + tokenSymbol[0]),
     ]
+    if (options.arguments.length > 0) {
+      calldata = calldata.concat(options.arguments.map(v => BigInt(v)))
+    } else {
+      if (!options.cap || !options.tokenName || !options.tokenSymbol || !options.amountPerMint) {
+        throw new Error('Either --arguments or all of --cap, --token-name, --token-symbol, and --amount-per-mint must be provided.')
+      }
+      const tokenName = packUTF8(options.tokenName)
+      const tokenSymbol = packUTF8(options.tokenSymbol)
+
+      if (tokenName.length > 2) {
+        throw new Error('Token name too long')
+      }
+
+      if (tokenSymbol.length > 1) {
+        throw new Error('Token symbol too long')
+      }
+      calldata = calldata.concat([
+        BigInt(0),
+        BigInt(options.premine ?? 0),
+        BigInt(options.amountPerMint),
+        BigInt(options.cap),
+        BigInt('0x' + tokenName[0]),
+        BigInt(tokenName.length > 1 ? '0x' + tokenName[1] : 0),
+        BigInt('0x' + tokenSymbol[0]),
+      ])
+    }
 
     const protostone = encodeRunestoneProtostone({
       protostones: [
@@ -288,6 +307,15 @@ export const alkaneExecute = new AlkanesCommand('execute')
     []
   )
   .option(
+    '-a, --alkanes <alkanes>',
+    'alkanes to spend for transaction',
+    (value, previous) => {
+      const items = value.split(',')
+      return previous ? previous.concat(items) : items
+    },
+    []
+  )
+  .option(
     '-m, --mnemonic <mnemonic>',
     '(optional) Mnemonic used for signing transactions (default = TEST_WALLET)'
   )
@@ -299,7 +327,7 @@ export const alkaneExecute = new AlkanesCommand('execute')
   .action(async (options) => {
     const wallet: Wallet = new Wallet(options)
 
-    const { accountUtxos } = await utxo.accountUtxos({
+    const { accountSpendableTotalUtxos, accounts } = await utxo.accountUtxos({
       account: wallet.account,
       provider: wallet.provider,
     })
@@ -315,6 +343,43 @@ export const alkaneExecute = new AlkanesCommand('execute')
         output: output ? Number(output) : undefined,
       }
     })
+
+    const alkanesToSpend = options.alkanes.map((item) => {
+      const [block, tx, amount] = item.split(':').map((part) => part.trim())
+      if (!block || !tx || !amount) {
+        throw new Error('Invalid format for --alkanes. Expected format is block:tx:amount.')
+      }
+      return {
+        alkaneId: { block, tx },
+        amount: Number(amount)
+      }
+    })
+
+    let availableAlkaneUtxos: utxo.FormattedUtxo[] = [];
+    for (const key in accounts) {
+      availableAlkaneUtxos.push(...accounts[key].alkaneUtxos);
+    }
+
+    const alkaneUtxosToSpend: utxo.FormattedUtxo[] = [];
+    const spentUtxoIds = new Set<string>();
+
+    for (const alkaneToSpend of alkanesToSpend) {
+      const { utxos: selectedUtxos } = utxo.selectAlkanesUtxos({
+        utxos: availableAlkaneUtxos.filter(u => !spentUtxoIds.has(`${u.txId}:${u.outputIndex}`)),
+        greatestToLeast: true,
+        alkaneId: alkaneToSpend.alkaneId,
+        targetNumberOfAlkanes: alkaneToSpend.amount
+      });
+
+      for (const u of selectedUtxos) {
+        const utxoId = `${u.txId}:${u.outputIndex}`;
+        if (!spentUtxoIds.has(utxoId)) {
+          alkaneUtxosToSpend.push(u);
+          spentUtxoIds.add(utxoId);
+        }
+      }
+    }
+
     const protostone: Buffer = encodeRunestoneProtostone({
       protostones: [
         ProtoStone.message({
@@ -330,7 +395,8 @@ export const alkaneExecute = new AlkanesCommand('execute')
     console.log(
       await alkanes.execute({
         protostone,
-        utxos: accountUtxos,
+        utxos: accountSpendableTotalUtxos,
+        alkanesUtxos: alkaneUtxosToSpend,
         feeRate: wallet.feeRate,
         account: wallet.account,
         signer: wallet.signer,

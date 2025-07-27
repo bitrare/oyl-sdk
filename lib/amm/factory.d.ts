@@ -73,7 +73,7 @@ export declare const createNewPool: ({ calldata, token0, token0Amount, token1, t
 export declare const splitAlkaneUtxos: (tokens: {
     alkaneId: AlkaneId;
     amount: bigint;
-}[], utxos: FormattedUtxo[]) => {
+}[], utxos: FormattedUtxo[], virtualOut?: number) => {
     protostone: Buffer;
     edicts: ProtoruneEdict[];
     utxos: FormattedUtxo[];
