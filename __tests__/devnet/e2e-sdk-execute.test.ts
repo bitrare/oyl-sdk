@@ -85,13 +85,14 @@ describe('UTXO gathering', () => {
     expect(utxos.length).toBeGreaterThan(0);
 
     const first = utxos[0];
-    expect(first.txid).toBeDefined();
-    expect(first.vout).toBeDefined();
-    expect(first.value).toBeGreaterThan(0);
-    expect(first.rawHex).toBeDefined();
+    expect(first.txId).toBeDefined();
+    expect(first.outputIndex).toBeDefined();
+    expect(first.satoshis).toBeGreaterThan(0);
+    expect(first.scriptPk).toBeDefined();
     expect(first.address).toBeDefined();
+    expect(first.indexed).toBe(true);
 
-    const total = utxos.reduce((s, u) => s + u.value, 0);
+    const total = utxos.reduce((s, u) => s + u.satoshis, 0);
     console.log(`[sdk] ${utxos.length} UTXOs, total ${total} sats`);
   });
 

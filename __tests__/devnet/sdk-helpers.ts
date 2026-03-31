@@ -83,17 +83,22 @@ export async function gatherUtxos(account: Account): Promise<FormattedUtxo[]> {
       // Get the raw tx to build the UTXO
       const rawHex = await rpcCall('btc_getrawtransaction', [u.txid]);
 
+      // Parse the raw tx to get the scriptPubKey for this output
+      const prevTx = bitcoin.Transaction.fromHex(rawHex);
+      const scriptPk = prevTx.outs[u.vout]?.script?.toString('hex') ?? '';
+
       allUtxos.push({
-        txid: u.txid,
-        vout: u.vout,
-        value: u.value,
+        txId: u.txid,
+        outputIndex: u.vout,
         satoshis: u.value,
-        rawHex,
+        value: u.value,
+        scriptPk,
         address,
-        status: {
-          confirmed: u.status?.confirmed ?? true,
-          block_height: u.status?.block_height ?? 0,
-        },
+        indexed: true,
+        inscriptions: [],
+        runes: {},
+        alkanes: {},
+        confirmations: 1,
       } as any);
     }
   }
