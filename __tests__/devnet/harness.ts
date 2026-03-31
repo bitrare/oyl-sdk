@@ -18,12 +18,14 @@ let _harness: any = null;
 
 /**
  * Derive the coinbase private key from the test mnemonic.
- * BIP84 m/84'/1'/0'/0/0 so coinbase UTXOs are spendable by the SDK wallet.
+ * BIP84 m/84'/0'/0'/0/0 so coinbase UTXOs are spendable by the SDK wallet.
  */
 function deriveSecretKey(mnemonic: string): Uint8Array {
   const seed = bip39.mnemonicToSeedSync(mnemonic);
   const root = bip32.fromSeed(seed);
-  const child = root.derivePath("m/84'/1'/0'/0/0");
+  // Use m/84'/0'/0'/0/0 (coin type 0) to match oyl-sdk's mnemonicToAccount
+  // which uses mainnet coin type even for regtest
+  const child = root.derivePath("m/84'/0'/0'/0/0");
   if (!child.privateKey) throw new Error('Failed to derive private key');
   return new Uint8Array(child.privateKey);
 }
@@ -111,8 +113,8 @@ export async function deriveTestAddresses(): Promise<{
   const root = bip32.fromSeed(seed);
   const net = bitcoin.networks.regtest;
 
-  const seg = root.derivePath("m/84'/1'/0'/0/0");
-  const tap = root.derivePath("m/86'/1'/0'/0/0");
+  const seg = root.derivePath("m/84'/0'/0'/0/0");
+  const tap = root.derivePath("m/86'/0'/0'/0/0");
 
   return {
     segwit: bitcoin.payments.p2wpkh({

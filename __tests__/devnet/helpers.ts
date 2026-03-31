@@ -74,14 +74,14 @@ export function createTestWallet() {
   const net = bitcoin.networks.regtest;
 
   // BIP84 native segwit
-  const segKey = root.derivePath("m/84'/1'/0'/0/0");
+  const segKey = root.derivePath("m/84'/0'/0'/0/0");
   const segPayment = bitcoin.payments.p2wpkh({
     pubkey: Buffer.from(segKey.publicKey),
     network: net,
   });
 
   // BIP86 taproot
-  const tapKey = root.derivePath("m/86'/1'/0'/0/0");
+  const tapKey = root.derivePath("m/86'/0'/0'/0/0");
   const tapPayment = bitcoin.payments.p2tr({
     internalPubkey: Buffer.from(tapKey.publicKey).slice(1),
     network: net,

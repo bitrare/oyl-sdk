@@ -11,6 +11,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@qubitcoin/sdk': resolve(__dirname, 'vendor/@qubitcoin/sdk/dist/index.js'),
+      '@alkanes/ts-sdk/wasm': resolve(__dirname, 'vendor/@alkanes/ts-sdk/wasm/alkanes_web_sys.js'),
+      '@alkanes/ts-sdk': resolve(__dirname, 'vendor/@alkanes/ts-sdk/dist/index.mjs'),
     },
   },
 });
